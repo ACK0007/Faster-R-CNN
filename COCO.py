@@ -9,16 +9,6 @@ import zipfile
 import torch
 import os
 
-class COCODataset(Dataset):
-    def __init__(self, data_source: str):
-        self.data_source = data_source
-        self.data = []
-        
-        with zipfile.zipFile(data_source, 'rb') as zip:
-            pass
-            
-            
-
 
 class COCODataset(Dataset):
     def __init__(
