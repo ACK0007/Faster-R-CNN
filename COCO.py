@@ -1,11 +1,9 @@
-from typing import Any, Callable, Dict, List, Optional, Tuple
 from torchvision.transforms.functional import to_tensor
 import torchvision.transforms.v2 as T  # torch>=2.1
-from torchvision.datasets import CocoDetection
+from typing import Any, Dict, List, Tuple
 from torch.utils.data import Dataset
 from pycocotools import coco as COCO
 from PIL import Image
-import zipfile
 import torch
 import os
 
@@ -16,8 +14,6 @@ class COCODataset(Dataset):
         data_source: str,
         mode: str = "train",
         year: str = "2017",
-        transforms: Optional[Callable] = None,
-        keep_crowd: bool = False,
     ) -> None:
         
         super().__init__()
@@ -26,8 +22,6 @@ class COCODataset(Dataset):
         self.data_source = data_source
         self.mode = mode
         self.year = year
-        self.transforms = transforms
-        self.keep_crowd = keep_crowd
 
         # Resolve image dir and annotation file
         img_dir = {
@@ -103,7 +97,7 @@ class COCODataset(Dataset):
         iscrowd: List[int] = []
 
         for a in anns:
-            if (not self.keep_crowd) and a.get("iscrowd", 0) == 1:
+            if a.get("iscrowd", 0) == 1:
                 continue
             x, y, w, h = a["bbox"]
             if w <= 0 or h <= 0:
@@ -126,10 +120,6 @@ class COCODataset(Dataset):
         img_id = self.ids[index]
         img = self._load_image(img_id)
         target = self._build_target(img_id)
-
-        if self.transforms is not None:
-            img, target = self.transforms(img, target)
-
         return img, target
 
 
