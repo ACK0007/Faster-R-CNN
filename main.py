@@ -5,7 +5,7 @@ import torch
 
 
 def main():
-    model = Faster_R_CNN()
+    model = Faster_R_CNN(3,80,9)
     train(model)
     
 if __name__ == 'main':
