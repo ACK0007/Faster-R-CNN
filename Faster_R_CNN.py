@@ -1,5 +1,7 @@
+from torchvision.models.feature_extraction import create_feature_extractor
 from torchvision.models.detection.anchor_utils import AnchorGenerator
 from torchvision.models.detection.image_list import ImageList
+from torchvision.models.resnet import resnet50
 from torchvision.ops import nms, roi_pool
 import torch.nn.functional as F
 import torch.nn as nn
@@ -10,44 +12,20 @@ class Faster_R_CNN(nn.Module):
     def __init__(self, in_channels: int, num_classes: int, num_anchors: int) -> None:
         super().__init__()
         
-        self.backbone = nn.Sequential(
-            nn.Conv2d(in_channels, 64, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2), ###
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2), ###
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2), ###
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2), ###
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True)
-        )
+        base = resnet50(weights=None)
+        self.backbone = create_feature_extractor(base, return_nodes={'layer4': 'C5'})
+        self.out_channels = 2048  # resnet50 layer4 channels
         
         
         
         self.RPN = RPN(512,num_anchors)
         
-        self.anchor_generator = AnchorGenerator(sizes=((128,256,512)*3), aspect_ratios=(0.5,1,2))
+        self.anchor_generator = AnchorGenerator(sizes=((128,256,512)), aspect_ratios=(0.5,1,2))
+        
+        # Class logits (K + 1 for background); keep raw logits (no Softmax inside)
+        self.cls_score = nn.Linear(4096, num_classes + 1)
+        # Box regression (class-agnostic here: 4). You can make it 4*num_classes for class-specific.
+        self.bbox_pred = nn.Linear(4096, 4)
         
          # ---- RPN proposal settings ----
         self.pre_nms_topk  = 12000
@@ -69,7 +47,14 @@ class Faster_R_CNN(nn.Module):
             nn.Linear(4096,4096),
             nn.Linear(4096,4)
         )
-        
+    
+    
+    def _compute_stride(self, img_shape, feat_shape):
+        # integer stride from image to feature map
+        H, W = img_shape
+        Hf, Wf = feat_shape
+        return (H // Hf, W // Wf)    
+    
     def _rpn_inference_single(self, cls_logits, bbox_deltas, anchors, image_size):
         """
         cls_logits: [2A, Hf, Wf]  (for one image)
@@ -108,16 +93,7 @@ class Faster_R_CNN(nn.Module):
         keep_idx = nms(boxes, scores, self.rpn_nms_thresh)
         keep_idx = keep_idx[: self.post_nms_topk]
         return boxes[keep_idx], scores[keep_idx]
-        
-    '''    
-    def forward(self, x):
-        x = self.backbone(x)
-        cls, reg = self.RPN(x)
-        cls = self.RoI_pool(cls)
-        cls = self.FC_cls(cls)
-        reg = self.FC_reg(reg)
-        return cls, reg
-    '''
+
         
     def forward(self, images: torch.Tensor):
         """
@@ -140,7 +116,7 @@ class Faster_R_CNN(nn.Module):
         anchors_per_image = self.anchor_generator(img_list, [features])  # List[N] of [AHW,4]
 
         # 3) RPN heads
-        rpn_cls, rpn_reg = self.rpn(features)  # [N,2A,Hf,Wf], [N,4A,Hf,Wf]
+        rpn_cls, rpn_reg = self.RPN(features)  # [N,2A,Hf,Wf], [N,4A,Hf,Wf]
 
         # 4) RPN inference → proposals per image
         proposals = []
