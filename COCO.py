@@ -119,6 +119,8 @@ class COCODataset(Dataset):
     def __getitem__(self, index: int) -> Tuple[Any, Dict[str, torch.Tensor]]:
         img_id = self.ids[index]
         img = self._load_image(img_id)
+        to_tensor = T.Compose([T.ToImage(),T.ToDtype(torch.float32, scale=True)])
+        img = to_tensor(img)
         target = self._build_target(img_id)
         return img, target
 
