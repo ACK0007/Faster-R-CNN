@@ -9,19 +9,27 @@ import torch
 
 
 class Faster_R_CNN(nn.Module):
-    def __init__(self, in_channels: int, num_classes: int, num_anchors: int) -> None:
+    def __init__(self, in_channels: int, num_classes: int) -> None:
         super().__init__()
-        
+
         base = resnet50(weights=None)
         self.backbone = create_feature_extractor(base, return_nodes={'layer4': 'C5'})
         self.out_channels = 2048  # resnet50 layer4 channels
+        self.roi_output_size = (7,7)
         
         
         
-        self.RPN = RPN(512,num_anchors)
+        self.anchor_generator = AnchorGenerator(sizes=((128,256,512),), aspect_ratios=((0.5,1,2),))
         
-        self.anchor_generator = AnchorGenerator(sizes=((128,256,512)), aspect_ratios=(0.5,1,2))
-        
+        num_anchors = self.anchor_generator.num_anchors_per_location()[0]
+        self.RPN = RPN(2048,num_anchors)
+
+        self.box_head = nn.Sequential(
+            nn.Linear(2048*7*7,4096),
+            nn.ReLU(inplace=True),
+            nn.Linear(4096,4096),
+            nn.ReLU(inplace=True)
+            )
         # Class logits (K + 1 for background); keep raw logits (no Softmax inside)
         self.cls_score = nn.Linear(4096, num_classes + 1)
         # Box regression (class-agnostic here: 4). You can make it 4*num_classes for class-specific.
@@ -32,21 +40,6 @@ class Faster_R_CNN(nn.Module):
         self.post_nms_topk = 1000
         self.rpn_nms_thresh = 0.7
         self.min_size = 1.0  # discard tiny boxes
-        
-        self.FC_cls = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(2*num_anchors,4096),
-            nn.Linear(4096,4096),
-            nn.Linear(4096,num_classes+1),
-            nn.Softmax(dim=1)
-        )
-        
-        self.FC_reg = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(4*num_anchors,4096),
-            nn.Linear(4096,4096),
-            nn.Linear(4096,4)
-        )
     
     
     def _compute_stride(self, img_shape, feat_shape):
@@ -107,7 +100,8 @@ class Faster_R_CNN(nn.Module):
         N, _, H, W = images.shape
 
         # 1) Backbone
-        features = self.backbone(images)  # [N, 512, Hf, Wf]
+        features = self.backbone(images)  # [N, 2048, Hf, Wf]
+        features = list(features.values())[0]
         _, C, Hf, Wf = features.shape
 
         # 2) Anchors for all images using torchvision AnchorGenerator
@@ -132,24 +126,7 @@ class Faster_R_CNN(nn.Module):
         spatial_scale = 1.0 / float(sx)  # assume square pixels; sx==sy for typical nets
 
         # roi_align expects a List[Tensor[K_i, 4]] in image coords per image
-        pooled_list = []
-        for i in range(N):
-            if proposals[i].numel() == 0:
-                pooled_list.append(torch.zeros((0, C, *self.roi_output_size), device=features.device))
-                continue
-            # roi_align: input features for the WHOLE batch + per-image boxes tagged with batch indices
-            boxes_i = proposals[i]
-            # build a single tensor with batch index in front as expected by torchvision <= 0.15 (if needed)
-            # newer versions take List[Tensor] directly
-            pooled = roi_pool(
-                input=features,              # [N, C, Hf, Wf]
-                boxes=[boxes_i],             # List[Tensor]
-                output_size=(7,7),
-                spatial_scale=spatial_scale,
-            )  # -> [K_i, C, 7, 7]
-            pooled_list.append(pooled)
-
-        pooled_feats = torch.cat(pooled_list, dim=0) if pooled_list else torch.empty(0, C, *self.roi_output_size, device=features.device)
+        pooled_feats = roi_pool(features, proposals, output_size=(7,7), spatial_scale=spatial_scale)
         num_rois = pooled_feats.shape[0]
 
         if num_rois == 0:
