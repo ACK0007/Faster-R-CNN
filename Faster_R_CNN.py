@@ -13,41 +13,40 @@ class Faster_R_CNN(nn.Module):
         super().__init__()
 
         base = resnet50(weights=None)
-        self.backbone = create_feature_extractor(base, return_nodes={'layer4': 'C5'})
+        self.backbone = create_feature_extractor(base, return_nodes={"layer4": "C5"})
         self.out_channels = 2048  # resnet50 layer4 channels
-        self.roi_output_size = (7,7)
-        
-        
-        
-        self.anchor_generator = AnchorGenerator(sizes=((128,256,512),), aspect_ratios=((0.5,1,2),))
-        
+        self.roi_output_size = (7, 7)
+
+        self.anchor_generator = AnchorGenerator(
+            sizes=((128, 256, 512),), aspect_ratios=((0.5, 1, 2),)
+        )
+
         num_anchors = self.anchor_generator.num_anchors_per_location()[0]
-        self.RPN = RPN(2048,num_anchors)
+        self.RPN = RPN(2048, num_anchors)
 
         self.box_head = nn.Sequential(
-            nn.Linear(2048*7*7,4096),
+            nn.Linear(2048 * 7 * 7, 4096),
             nn.ReLU(inplace=True),
-            nn.Linear(4096,4096),
-            nn.ReLU(inplace=True)
-            )
+            nn.Linear(4096, 4096),
+            nn.ReLU(inplace=True),
+        )
         # Class logits (K + 1 for background); keep raw logits (no Softmax inside)
         self.cls_score = nn.Linear(4096, num_classes + 1)
         # Box regression (class-agnostic here: 4). You can make it 4*num_classes for class-specific.
         self.bbox_pred = nn.Linear(4096, 4)
-        
-         # ---- RPN proposal settings ----
-        self.pre_nms_topk  = 12000
+
+        # ---- RPN proposal settings ----
+        self.pre_nms_topk = 12000
         self.post_nms_topk = 1000
         self.rpn_nms_thresh = 0.7
         self.min_size = 1.0  # discard tiny boxes
-    
-    
+
     def _compute_stride(self, img_shape, feat_shape):
         # integer stride from image to feature map
         H, W = img_shape
         Hf, Wf = feat_shape
-        return (H // Hf, W // Wf)    
-    
+        return (H // Hf, W // Wf)
+
     def _rpn_inference_single(self, cls_logits, bbox_deltas, anchors, image_size):
         """
         cls_logits: [2A, Hf, Wf]  (for one image)
@@ -58,7 +57,7 @@ class Faster_R_CNN(nn.Module):
         """
         AHW = anchors.shape[0]
         # reshape to [AHW, 2] and [AHW, 4]
-        cls_logits = cls_logits.permute(1, 2, 0).reshape(-1, 2)    # [Hf,Wf,2A]→[AHW,2]
+        cls_logits = cls_logits.permute(1, 2, 0).reshape(-1, 2)  # [Hf,Wf,2A]→[AHW,2]
         bbox_deltas = bbox_deltas.permute(1, 2, 0).reshape(-1, 4)  # [Hf,Wf,4A]→[AHW,4]
 
         # objectness score = foreground probability
@@ -68,7 +67,7 @@ class Faster_R_CNN(nn.Module):
         num_topk = min(self.pre_nms_topk, AHW)
         scores, idxs = probs.topk(num_topk, dim=0)
         top_anchors = anchors[idxs]
-        top_deltas  = bbox_deltas[idxs]
+        top_deltas = bbox_deltas[idxs]
 
         # decode + clip
         boxes = decode_boxes(top_deltas, top_anchors)
@@ -87,7 +86,6 @@ class Faster_R_CNN(nn.Module):
         keep_idx = keep_idx[: self.post_nms_topk]
         return boxes[keep_idx], scores[keep_idx]
 
-        
     def forward(self, images: torch.Tensor):
         """
         images: [N, C, H, W]
@@ -107,7 +105,9 @@ class Faster_R_CNN(nn.Module):
         # 2) Anchors for all images using torchvision AnchorGenerator
         #    (build ImageList so AnchorGenerator can infer strides internally)
         img_list = ImageList(images, [(H, W) for _ in range(N)])
-        anchors_per_image = self.anchor_generator(img_list, [features])  # List[N] of [AHW,4]
+        anchors_per_image = self.anchor_generator(
+            img_list, [features]
+        )  # List[N] of [AHW,4]
 
         # 3) RPN heads
         rpn_cls, rpn_reg = self.RPN(features)  # [N,2A,Hf,Wf], [N,4A,Hf,Wf]
@@ -126,36 +126,43 @@ class Faster_R_CNN(nn.Module):
         spatial_scale = 1.0 / float(sx)  # assume square pixels; sx==sy for typical nets
 
         # roi_align expects a List[Tensor[K_i, 4]] in image coords per image
-        pooled_feats = roi_pool(features, proposals, output_size=(7,7), spatial_scale=spatial_scale)
+        pooled_feats = roi_pool(
+            features, proposals, output_size=(7, 7), spatial_scale=spatial_scale
+        )
         num_rois = pooled_feats.shape[0]
 
         if num_rois == 0:
             # nothing proposed → return empties
-            return proposals, torch.empty(0, 0, device=features.device), torch.empty(0, 4, device=features.device)
+            return (
+                proposals,
+                torch.empty(0, 0, device=features.device),
+                torch.empty(0, 4, device=features.device),
+            )
 
         # 6) Detection heads (per RoI)
-        x = pooled_feats.flatten(1)      # [sum(K_i), C*7*7]
-        x = self.box_head(x)             # [sum(K_i), hidden]
-        class_logits = self.cls_score(x) # [sum(K_i), K+1] (raw logits)
-        bbox_deltas  = self.bbox_pred(x) # [sum(K_i), 4]  (class-agnostic here)
+        x = pooled_feats.flatten(1)  # [sum(K_i), C*7*7]
+        x = self.box_head(x)  # [sum(K_i), hidden]
+        class_logits = self.cls_score(x)  # [sum(K_i), K+1] (raw logits)
+        bbox_deltas = self.bbox_pred(x)  # [sum(K_i), 4]  (class-agnostic here)
 
         return proposals, class_logits, bbox_deltas
-    
-    
+
+
 class RPN(nn.Module):
     def __init__(self, in_channels: int, num_anchors: int) -> None:
         super().__init__()
-        
+
         self.conv_layer = nn.Conv2d(in_channels, 512, kernel_size=3, padding=1)
-        self.cls_conv = nn.Conv2d(512, 2*num_anchors, kernel_size=1, padding=0)
-        self.reg_conv = nn.Conv2d(512, 4*num_anchors, kernel_size=1, padding=0)
-        
+        self.cls_conv = nn.Conv2d(512, 2 * num_anchors, kernel_size=1, padding=0)
+        self.reg_conv = nn.Conv2d(512, 4 * num_anchors, kernel_size=1, padding=0)
+
     def forward(self, x):
         x = self.conv_layer(x)
         x = F.relu(x, inplace=True)
         cls, reg = self.cls_conv(x), self.reg_conv(x)
         return cls, reg
-        
+
+
 def decode_boxes(deltas, anchors):
     """
     deltas:   [M, 4]  (tx, ty, tw, th)
