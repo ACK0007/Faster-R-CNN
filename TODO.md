@@ -5,6 +5,6 @@
 -> Simplepod.ai (Need to pay a small fee)
 [->] Evaluation protocols for Faster-RCNN [A]
 [->] Double check Faster RCNN and Loss functions [R]
-[->] Set up some kind training/logging visualizations [A]
+[->] Set up some kind training/logging visualizations [A] (wandb)
 [->] initialization script for setup.sh [R]
 [->] requirements.txt [A]
