@@ -1,0 +1,37 @@
+{
+  "os": "macOS-15.6.1-arm64-arm-64bit",
+  "python": "CPython 3.9.6",
+  "startedAt": "2025-11-14T21:40:35.502236Z",
+  "program": "/Users/ahmet/Desktop/python/PyTorch/Faster-R-CNN/main.py",
+  "codePath": "main.py",
+  "codePathLocal": "main.py",
+  "git": {
+    "remote": "git@github.com:ACK0007/Faster-R-CNN.git",
+    "commit": "8fa110b3bccf210537e6038c1e02d4725ae25330"
+  },
+  "email": "ahmetcevdetkaya@yahoo.com",
+  "root": "/Users/ahmet/Desktop/python/PyTorch/Faster-R-CNN",
+  "host": "Ahmets-MacBook-Pro-86.local",
+  "executable": "/Library/Developer/CommandLineTools/usr/bin/python3",
+  "cpu_count": 11,
+  "cpu_count_logical": 11,
+  "disk": {
+    "/": {
+      "total": "494384795648",
+      "used": "275105189888"
+    }
+  },
+  "memory": {
+    "total": "19327352832"
+  },
+  "apple": {
+    "name": "Apple M3 Pro",
+    "ecpuCores": 6,
+    "pcpuCores": 5,
+    "gpuCores": 14,
+    "memoryGb": 18,
+    "swapTotalBytes": "5368709120",
+    "ramTotalBytes": "19327352832"
+  },
+  "writerId": "k6qobirxcr2xy92j1aymp0jzipn5gtxl"
+}

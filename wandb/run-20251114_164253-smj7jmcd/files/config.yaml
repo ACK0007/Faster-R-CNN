@@ -1,0 +1,65 @@
+_wandb:
+    value:
+        cli_version: 0.23.0
+        e:
+            3p6347j2k2bi3lccjhgvt5r7qi42fkkr:
+                apple:
+                    ecpuCores: 6
+                    gpuCores: 14
+                    memoryGb: 18
+                    name: Apple M3 Pro
+                    pcpuCores: 5
+                    ramTotalBytes: "19327352832"
+                    swapTotalBytes: "8589934592"
+                codePath: main.py
+                codePathLocal: main.py
+                cpu_count: 11
+                cpu_count_logical: 11
+                disk:
+                    /:
+                        total: "494384795648"
+                        used: "278344519680"
+                email: ahmetcevdetkaya@yahoo.com
+                executable: /Library/Developer/CommandLineTools/usr/bin/python3
+                git:
+                    commit: 8fa110b3bccf210537e6038c1e02d4725ae25330
+                    remote: git@github.com:ACK0007/Faster-R-CNN.git
+                host: Ahmets-MacBook-Pro-86.local
+                memory:
+                    total: "19327352832"
+                os: macOS-15.6.1-arm64-arm-64bit
+                program: /Users/ahmet/Desktop/python/PyTorch/Faster-R-CNN/main.py
+                python: CPython 3.9.6
+                root: /Users/ahmet/Desktop/python/PyTorch/Faster-R-CNN
+                startedAt: "2025-11-14T21:42:53.328355Z"
+                writerId: 3p6347j2k2bi3lccjhgvt5r7qi42fkkr
+        m: []
+        python_version: 3.9.6
+        t:
+            "1":
+                - 1
+                - 41
+            "2":
+                - 1
+                - 41
+            "3":
+                - 16
+                - 61
+            "4": 3.9.6
+            "5": 0.23.0
+            "12": 0.23.0
+            "13": darwin-arm64
+batch_size:
+    value: 1
+device:
+    value: mps
+epochs:
+    value: 10
+freeze_backbone:
+    value: true
+grad_clip_norm:
+    value: 5
+lr:
+    value: 0.001
+num_classes:
+    value: 81

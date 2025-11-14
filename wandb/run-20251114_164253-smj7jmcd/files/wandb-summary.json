@@ -1,0 +1,1 @@
+{"_step":12,"loss/rpn_cls":0.4336811602115631,"lr":0.001,"loss/roi_reg":0,"loss/roi_cls":0.40134215354919434,"loss/total":4.906497001647949,"_wandb":{"runtime":1068},"loss/rpn_reg":4.071473598480225,"_runtime":1068.88199575,"_timestamp":1.763157563925492e+09}

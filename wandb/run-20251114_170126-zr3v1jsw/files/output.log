@@ -1,0 +1,9 @@
+epoch 0:   0%|                                                                                                  | 2/118287 [03:58<3912:26:18, 119.07s/it, loss=22.1]
+Traceback (most recent call last):
+  File "/Users/ahmet/Desktop/python/PyTorch/Faster-R-CNN/main.py", line 19, in <module>
+    main()
+  File "/Users/ahmet/Desktop/python/PyTorch/Faster-R-CNN/main.py", line 14, in main
+    train(model, data_source, batch_size=batch_size, epochs=epochs)
+  File "/Users/ahmet/Desktop/python/PyTorch/Faster-R-CNN/train.py", line 287, in train
+    if pos_roi.any():
+KeyboardInterrupt
