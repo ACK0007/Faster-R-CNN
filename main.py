@@ -5,7 +5,7 @@ from train import train
 def main():
     in_channels = 3
     num_classes = 80
-    data_source = '/Users/ahmet/Desktop/python/PyTorch/Faster R-CNN'
+    data_source = '/Users/ahmet/Desktop/python/PyTorch/COCO'
     batch_size = 1
     epochs = 10
     
