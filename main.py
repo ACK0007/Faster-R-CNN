@@ -19,7 +19,7 @@ def main(args: argparse.Namespace):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-data_source", type=str, default='/Users/ahmet/Desktop/python/PyTorch/COCO')
-    parser.add_argument("-lf", type=float, default=1e-3)
+    parser.add_argument("-lr", type=float, default=1e-3)
     parser.add_argument("-batch_size", type=int, default=1)
     parser.add_argument("-epochs", type=float, default=10)
     args = parser.parse_args()
